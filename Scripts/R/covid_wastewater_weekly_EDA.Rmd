@@ -1,0 +1,128 @@
+---
+title: "covid_wastewater_weekly_conc_EDA"
+output: pdf_document
+date: "2025-05-18"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+```{r}
+library(tidyverse)
+library(mapview) 
+library(lubridate)
+library(mvtsplot)
+library(INLA)
+library(inlabru)
+library(viridis)
+library(sp)
+library(fmesher)
+library(GGally)
+library(corrr)
+library(readr)
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+```
+
+```{r}
+setwd("C:/Users/caela/OneDrive/Documents/MSc Health Data Analytics and Machine Learning/Project/Scripts")
+```
+
+```{r}
+file_path <- file.path("..", "..", "Data", 
+                       "EMHP_SARS-CoV-2_RNA_Weekly_Concentration_May_2022.csv")
+
+emhp_data <- read_csv(file_path)
+head(emhp_data)
+```
+
+```{r}
+# 1) Pivot from wide → long
+emhp_long <- emhp_data %>%
+  # keep the metadata columns, gather all the “DD/MM/YYYY” columns
+  pivot_longer(
+    cols = -c(`Region name`, `Site code`, `Site name`, Population),
+    names_to   = "date",
+    values_to  = "RNA_concentration"
+  ) %>%
+  # parse the date strings into actual Dates
+  mutate(date = dmy(date))
+
+# inspect
+glimpse(emhp_long)
+```
+```{r}
+head(emhp_long)
+```
+
+
+```{r}
+# 2) Pivot back to wide (one column per site), rows ordered by date
+emhp_wide <- emhp_long %>%
+  select(`Site code`, RNA_concentration, date) %>%
+  pivot_wider(
+    names_from   = `Site code`,
+    values_from  = RNA_concentration
+  ) %>%
+  arrange(date)
+
+# extract matrix (dropping the date column)
+emhp_mat <- emhp_wide %>%
+  select(-date) %>%
+  as.matrix()
+```
+
+```{r}
+head(emhp_wide)
+```
+
+
+```{r}
+mvtsplot(
+  emhp_mat,
+  xtime   = emhp_wide$date,
+  group   = NULL,          # no grouping variable
+  norm    = "global",      # global normalization
+  levels  = 3,             # tree depth
+  margin  = TRUE,
+  main    = "Weekly SARS-CoV-2 RNA Concentration by Site",
+  palette = "PRGn",
+  rowstat = "median"
+)
+
+```
+
+
+```{r}
+# 1a) summary of every single weekly value
+summary(emhp_long$RNA_concentration)
+```
+```{r}
+# 1b) histogram of all measurements
+ggplot(emhp_long, aes(x = RNA_concentration)) +
+  geom_histogram(col = "orange", bins = 30) +
+  labs(
+    title = "Weekly SARS-CoV-2 RNA Concentrations",
+    x     = "RNA Concentration",
+    y     = "Count"
+  )
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
